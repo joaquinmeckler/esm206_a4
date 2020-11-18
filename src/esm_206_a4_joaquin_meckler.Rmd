@@ -1,0 +1,115 @@
+---
+title: "ESM 206 Week 4 Assignment"
+author: "Joaquin Meckler"
+date: "11/17/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(here)
+library(ggplot2)
+library(lubridate)
+library(janitor)
+library(ggbeeswarm)
+library(kableExtra)
+library(broom)
+library(effsize)
+```
+
+### Introduction
+Introduction: A 4 - 5 sentence "mini-introduction" to what this study is exploring, including basic background information about the subject, site and study (with citations as needed), and a brief overview of what is included in the exploratory report. You should probably do this last.
+
+### Data and Analyses
+Data and analyses: A 3 - 4 sentence section in which you briefly describe the data, including citation & credit as needed, and provide an overview of the main analysis, statistical methods and tools used.
+```{r}
+bonanza_hares<-read_csv(here("data", "bonanza_hares.csv")) %>% 
+  filter
+```
+
+### Exploratory Findings
+
+
+```{r}
+ann_j_trap<-bonanza_hares %>% 
+mutate(date=mdy(date)) %>% 
+  mutate(year=year(date)) %>% 
+  mutate(month=month(date)) %>% 
+  filter(age=="j") %>% 
+  count(year) %>% 
+  rename("count"= "n")
+
+ggplot(data = ann_j_trap, aes(x=year, y=count)) +
+         geom_col()
+```
+
+
+```{r}
+juv_weight<-bonanza_hares %>% 
+  filter(!is.na(weight), age== "j") %>% 
+   group_by(grid, sex)
+
+ggplot()+geom_beeswarm(data=juv_weight, aes(x=sex, y=weight))+
+  facet_wrap(~grid)
+  
+```
+
+
+```{r}
+juv_comp_table<-bonanza_hares %>% 
+  filter(age== "j") %>% 
+  filter(!is.na(weight)) %>% 
+  filter(!is.na(sex)) %>% 
+  group_by(sex) %>% 
+  summarize(mean=mean(weight), sd=sd(weight), n=n())
+
+kbl(juv_comp_table) %>% 
+  kable_styling()
+
+juv_m<-bonanza_hares %>% 
+  filter(age=="j", sex=="m") %>% 
+  pull(weight)
+
+juv_f<-bonanza_hares %>% 
+  filter(age=="j", sex=="f") %>% 
+  pull(weight)
+
+hist(juv_m)
+qqnorm(juv_m)
+hist(juv_f)
+qqnorm(juv_f)
+
+pct_dif<-function(a,b){(b-a)/((a+b)/2)}
+actual_dif<-function(a,b){b-a}
+
+pct_dif(juv_m, juv_f)
+actual_dif(juv_m, juv_f)
+
+juv_comp_ttest <- t.test(juv_m, juv_f)
+
+juv_effsize <- cohen.d(juv_m, juv_f)
+```
+
+```{r}
+hare_foot<-bonanza_hares %>% 
+  filter(age== "j")
+
+ggplot(data = hare_foot, aes(x=hindft, y=weight))+
+  geom_point()
+```
+```{r}
+hares_lm <- lm(hindft ~ weight, data = hare_foot)
+hares_lm_tidy <- tidy(hares_lm)
+hares_lm_glance <- glance(hares_lm)
+plot(hares_lm)
+
+hares_cor <- cor.test(hare_foot$hindft, hare_foot$weight)
+
+hares_cor_tidy <- tidy(hares_cor)
+```
+
+
+### Summary
+
+### Citations
