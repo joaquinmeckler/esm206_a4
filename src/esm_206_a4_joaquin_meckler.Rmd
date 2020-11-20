@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, error = FALSE, warning = FALSE)
 library(tidyverse)
 library(here)
 library(ggplot2)
@@ -18,54 +18,119 @@ library(broom)
 library(effsize)
 ```
 
-### Introduction
+### 1. Introduction
 Introduction: A 4 - 5 sentence "mini-introduction" to what this study is exploring, including basic background information about the subject, site and study (with citations as needed), and a brief overview of what is included in the exploratory report. You should probably do this last.
 
-### Data and Analyses
+### 2. Data and Analyses
 Data and analyses: A 3 - 4 sentence section in which you briefly describe the data, including citation & credit as needed, and provide an overview of the main analysis, statistical methods and tools used.
 ```{r}
 bonanza_hares<-read_csv(here("data", "bonanza_hares.csv")) %>% 
   filter
 ```
 
-### Exploratory Findings
-
+## 3. Exploratory Findings
+### A. Annual Juvenile Hare Trap counts
 
 ```{r}
 ann_j_trap<-bonanza_hares %>% 
 mutate(date=mdy(date)) %>% 
-  mutate(year=year(date)) %>% 
-  mutate(month=month(date)) %>% 
+  mutate(year=year(date))  %>% 
   filter(age=="j") %>% 
-  count(year) %>% 
-  rename("count"= "n")
+  count(year)
 
-ggplot(data = ann_j_trap, aes(x=year, y=count)) +
-         geom_col()
+ggplot(data = ann_j_trap, aes(x=year, y=n, )) +
+         geom_col(fill="bisque3", color="black")+ #good color for rabbit data
+  labs(x = "Time (years)", 
+       y = "Count (n)", 
+       title= "Annual Juvenile Hare Trap Counts (1999-2012)")+
+  theme(plot.title = element_text(hjust = .5))
+
+ann_j_trap_sum<-ann_j_trap %>% 
+  summarize(mean=mean(n),
+            median=median(n),
+            min=min(n),
+            max=max(n))
+
 ```
 
+**Figure 1.** Annual count totals (n) for juvenile snowshoe hares caught in Bonanza Creek Experiment Forest, Tanana Valley, AK from 1990 to 2012.  Counts were highest in 1999 (n=126) and lowest in 2010 (n=2)   
+
+### Interpretation of Results 
+Figure 1 displays the annual counts of juvenile snowshow hares across time. The counts range from a maximum of `r ann_j_trap_sum [1,4]` to a minimum of `r ann_j_trap_sum[1,3]`. The mean across all years is `r ann_j_trap_sum [1,1]` with a median of `r ann_j_trap_sum [1,2]`. Years 2002 and 2009 display no count records due to no juvenile snowshoe hares being identified as juveniles after being trapped. Including a zero would create the assumption that there were no juvanlies trapped in a given year, which would be inaccurate due to the uncertainty that exists for the two years with zero counts being shown.The overall trend shows the overall number of snowshow hares decreasing over time. As the number of absolute counts are impacted by effort, it would be recommended to quantify this through setting a limit on trapping days or number of traps. This would account of any discrepancies in effort across years. Additionally, several individuals were recaptured in a single year, thus the overall count is slightly lower then our data. 
+
+
+
+
+### B. Juvenile Hare Weights
 
 ```{r}
 juv_weight<-bonanza_hares %>% 
   filter(!is.na(weight), age== "j") %>% 
-   group_by(grid, sex)
+   group_by(grid, sex) %>% 
+   mutate(sex=case_when(
+    sex=="f"~"Female",
+    sex=="m" ~ "Male" )) %>% 
+ mutate(grid=case_when(
+    grid=="bonrip"~"Bonanza Riparian",
+     grid=="bonmat"~"Bonanza Mature Forest",
+   grid=="bonbs" ~ "Bonanza Black Spruce" ))
+## spent an hour trying to get scale_fill_manual(name = "Sex", labels = c("Female", "Male", "NA")) to work but no luck. settled on doing this. 
 
-ggplot()+geom_beeswarm(data=juv_weight, aes(x=sex, y=weight))+
-  facet_wrap(~grid)
-  
 ```
 
 
+```{r}
+ggplot(data=juv_weight, aes(x=sex, y=weight))+
+  geom_beeswarm(aes(color=sex))+
+                  facet_wrap(~grid, labeller = labeller(bonbs="Lowland", bonmat= "Mature", bonrip="Riparian"))+
+  scale_color_manual(values =c("bisque3","bisque4","black"))+
+  labs(x = "Sex ", 
+       y = "Weight (grams)", 
+       title= " Juvenile Hare Weight by Sex and Site Location (1999-2012)")+
+  theme(plot.title = element_text(hjust = .5))+
+          scale_fill_manual(name = "Sex", labels = c("Female", "Male", "NA"))+
+  geom_boxplot(fill = NA, outlier.color = NA, width = 0.5)+
+  stat_summary(fun=mean, 
+               geom="point", 
+               shape=15, 
+               size=2, 
+               color="black", 
+               fill="black")
+
+## why isnt NA showing up
+```
+
+**Figure 2. ** Comparison of juvenile Snowshow Hare weight (grams) across three sites (Bonanza Riparian, Bonanza Mature Forest and Bonanza Black Spruce) by sex. The x-axis displays the sex, with a NA column for unidentified indviduals. The black square represents the mean weight for each sex at each site. The error barrs represent +/- one standard devation from the mean.   
+
+### Interpretation of Results 
+Figure 2 displays comparisons of weight among male and female snowshoe hares across three different sites, characterized as a Black Spruce site, a Mature Forest site, and a Riparian site.  Across all three sites, males have a higher average weight. The highest difference in mean weights occurred in the Riparian site location. It is possible that outliers at Black Spruce and Riparian location noticeably impacted the mean. 
+
+
+## Further Juvenile Weight Comparison Among Male & Female Hares
 ```{r}
 juv_comp_table<-bonanza_hares %>% 
   filter(age== "j") %>% 
   filter(!is.na(weight)) %>% 
   filter(!is.na(sex)) %>% 
   group_by(sex) %>% 
-  summarize(mean=mean(weight), sd=sd(weight), n=n())
+  summarize(mean=mean(weight), sd=sd(weight), n=n()) %>% 
+   mutate(sex=case_when(
+    sex=="f"~"Female",
+    sex=="m" ~ "Male" ))
+```
 
-kbl(juv_comp_table) %>% 
-  kable_styling()
+
+```{r}
+
+##**Table 1** Table 1 displays the mean male ( `r round(juv_comp_table [2,2],2)` $\pm$ `r round(juv_comp_table [2,3]`,2) and female ( `r round(juv_comp_table [2,1],2)`$\pm$ `r round(juv_comp_table [1,3]`,2) weight +/- the standard deviation. The population total was `r round(juv_comp_table [2,4],2)` and `r round(juv_comp_table [1,4],2)` for males and females, respectively. 
+
+
+juv_comp_table %>% 
+  kable(col.names = c("Sex", "Mean Weights(g)", "Standard Deviation(g)", "Sample Size")) %>% 
+  kable_styling(bootstrap_options = "striped")
+```
+
+```{r}
 
 juv_m<-bonanza_hares %>% 
   filter(age=="j", sex=="m") %>% 
@@ -80,15 +145,32 @@ qqnorm(juv_m)
 hist(juv_f)
 qqnorm(juv_f)
 
-pct_dif<-function(a,b){(b-a)/((a+b)/2)}
-actual_dif<-function(a,b){b-a}
+juv_comp_ttest <- t.test(juv_m, juv_f) #performing a t-test
+juv_comp_ttest_tidy <- tidy(juv_comp_ttest)#able to call out in-line
 
-pct_dif(juv_m, juv_f)
-actual_dif(juv_m, juv_f)
+juv_effsize <- cohen.d(juv_m, juv_f) #getting effect size
 
-juv_comp_ttest <- t.test(juv_m, juv_f)
+##pct_dif<-function(a,b){(b-a)/((a+b)/2)}
+##actual_dif<-function(a,b){b-a}
 
-juv_effsize <- cohen.d(juv_m, juv_f)
+##pct_dif(juv_m, juv_f)
+##actual_dif(juv_m, juv_f)
+
+male_mean <- mean(juv_m)
+female_mean <- mean(juv_f, na.rm = TRUE)
+male_sd <- sd(juv_m)
+female_sd <- sd(juv_f,  na.rm = TRUE)
+
+```
+### Interpretation of Results 
+
+The variation among male and female snowshow hares resulted in a actual difference of (`r round(male_mean, 2) - round(female_mean, 2)` ((a `r round((male_mean - female_mean)/((male_mean + female_mean)/2)*100, 2)`% difference)). 
+After carrying out a t-test, we were returned a p-value greater then .05, thus the difference in means is significant (Welch's two-sample t-test: t(`r round(juv_comp_ttest_tidy$parameter,2)`) = `r round(juv_comp_ttest_tidy$statistic,2)`, p < 0.001), and the effect size is large (Cohen's *d* = `r round(juv_effsize$estimate,2)`).
+
+
+
+```{r}
+## (`r round(male_mean,2)` $\pm$ `r round(male_sd, 2)` and `r round(female_mean,2)` $\pm$ `r round(female_sd, 2)` mm, respectively; mean $\pm$ 1 standard deviation). While the absolute difference in means is `r round(male_mean, 2) - round(female_mean, 2)` mm (a `r round((male_mean - female_mean)/((male_mean + female_mean)/2)*100, 2)`% difference), the difference in means is significant (Welch's two-sample t-test: t(`r round(gentoo_ttest_tidy$parameter,2)`) = `r round(gentoo_ttest_tidy$statistic,2)`, p < 0.001), and the effect size is large (Cohen's *d* = `r round(gentoo_effsize$estimate,2)`).
 ```
 
 ```{r}
@@ -96,17 +178,19 @@ hare_foot<-bonanza_hares %>%
   filter(age== "j")
 
 ggplot(data = hare_foot, aes(x=hindft, y=weight))+
+  geom_smooth()+
   geom_point()
 ```
 ```{r}
 hares_lm <- lm(hindft ~ weight, data = hare_foot)
-hares_lm_tidy <- tidy(hares_lm)
-hares_lm_glance <- glance(hares_lm)
+hares_lm_tidy <- broom::tidy(hares_lm)
+hares_lm_glance <- broom::glance(hares_lm)
 plot(hares_lm)
 
 hares_cor <- cor.test(hare_foot$hindft, hare_foot$weight)
 
 hares_cor_tidy <- tidy(hares_cor)
+summary(hares_lm)
 ```
 
 
